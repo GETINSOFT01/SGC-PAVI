@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "http-server": "^14.1.1",
+    "vue": "^3.5.17"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  },
+  "scripts": {
+    "build:css": "tailwindcss -i ./src/styles/input.css -o ./src/styles/tailwind.css --minify"
+  }
+}

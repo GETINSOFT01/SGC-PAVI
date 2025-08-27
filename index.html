@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGC Grupo PAVI - ISO 9001:2015</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="src/styles/tailwind.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css?v=1.0">
+    <script type="module" src="app.js?v=1.1"></script>
+</head>
+<body>
+
+<div id="app" v-cloak>
+    <div v-if="isAuthenticated" class="flex h-screen bg-slate-100 font-sans">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-slate-800 text-white flex flex-col transition-all duration-300">
+        <!-- Logo and Title -->
+        <div class="flex items-center justify-center h-20 border-b border-slate-700">
+            <img :src="logoUrl" alt="Logo SGC" class="h-10 w-10 rounded-full mr-3">
+            <h1 class="text-lg font-semibold">SGC PAVI</h1>
+        </div>
+
+        <!-- System Selector -->
+        <div class="p-4">
+            <label for="system-select" class="block text-sm font-medium text-slate-400 mb-2">Sistema de Gestión</label>
+            <select id="system-select" v-model="currentSystem" class="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                <option v-for="system in systems" :value="system.id">{{ system.name }}</option>
+            </select>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 px-2 py-4 space-y-2">
+            <a v-for="module in filteredModules" href="#" 
+               @click.prevent="selectModule(module.id)" 
+               :class="{ 'bg-slate-700 text-white': currentModule === module.id, 'text-slate-300 hover:bg-slate-700 hover:text-white': currentModule !== module.id }" 
+               class="flex items-center px-4 py-2.5 text-sm font-medium rounded-md transition-colors duration-200">
+                <i :class="[module.icon, 'w-6 text-center']"></i>
+                <span class="ml-3">{{ module.name }}</span>
+            </a>
+        </nav>
+
+        <!-- User profile is now in the main header -->
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+        <!-- Header -->
+        <header class="flex justify-between items-center p-4 border-b-2 border-slate-200 bg-white">
+            <h2 class="text-2xl font-bold text-slate-800 capitalize">{{ currentModule.replace('_', ' ') }}</h2>
+            <div class="flex items-center space-x-4">
+                <button class="text-slate-500 hover:text-cyan-600">
+                    <i class="fas fa-bell"></i>
+                </button>
+                <button class="text-slate-500 hover:text-cyan-600">
+                    <i class="fas fa-cog"></i>
+                </button>
+
+                <button v-if="currentModule !== 'dashboard'" class="bg-cyan-500 text-white px-4 py-2 rounded-md hover:bg-cyan-600 text-sm font-medium" @click="openModal('add')">
+                    <i class="fas fa-plus mr-2"></i>Añadir {{ modules.find(m => m.id === currentModule)?.singular }}
+                </button>
+                <button v-if="currentModule !== 'dashboard'" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 text-sm font-medium" @click="resetCurrentData()" title="Limpia los datos locales de este módulo">
+                    <i class="fas fa-rotate-left mr-2"></i>Restablecer datos
+                </button>
+                <button class="bg-red-500/80 text-white px-4 py-2 rounded-md hover:bg-red-600 text-sm font-medium" @click="openResetModal()" title="Restablecer varios módulos o catálogos">
+                    <i class="fas fa-broom mr-2"></i>Restablecer múltiple
+                </button>
+
+                <!-- Separator -->
+                <div class="border-l border-slate-200 h-8"></div>
+
+                <!-- User Profile Dropdown -->
+                <div v-if="isAuthenticated" class="relative">
+                    <button @click="toggleProfileMenu" class="flex items-center space-x-2 focus:outline-none">
+                        <span class="text-slate-600 font-medium text-sm">{{ loggedInUser.nombre }}</span>
+                        <i class="fas fa-chevron-down text-slate-500 text-xs transition-transform duration-200" :class="{'rotate-180': isProfileMenuOpen}"></i>
+                    </button>
+                    <div v-show="isProfileMenuOpen" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-xl py-1 z-50 border border-slate-200">
+                        <a href="#" @click.prevent="logout" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
+                            <i class="fas fa-sign-out-alt fa-fw mr-2 text-slate-500"></i>
+                            Cerrar Sesión
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </header>
+
+        <!-- Content Area -->
+        <div class="flex-1 p-6 overflow-auto">
+            <!-- Dashboard -->
+            <div v-if="currentModule === 'dashboard'">
+                <!-- Welcome message -->
+                <div class="mb-6">
+                    <h2 class="text-3xl font-bold text-slate-800">Bienvenido al Dashboard</h2>
+                    <p class="text-slate-500">Un resumen del estado actual de tu Sistema de Gestión de Calidad.</p>
+                </div>
+
+                <!-- KPI Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                        <div class="bg-cyan-100 text-cyan-600 rounded-full p-3 mr-4">
+                            <i class="fas fa-file-alt fa-2x"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-500">Documentos Totales</p>
+                            <p class="text-2xl font-bold text-slate-800">{{ documentos.length }}</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                        <div class="bg-purple-100 text-purple-600 rounded-full p-3 mr-4">
+                            <i class="fas fa-project-diagram fa-2x"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-500">Procesos Definidos</p>
+                            <p class="text-2xl font-bold text-slate-800">{{ procesos.length }}</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                        <div class="bg-yellow-100 text-yellow-600 rounded-full p-3 mr-4">
+                            <i class="fas fa-clipboard-check fa-2x"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-500">Auditorías Pendientes</p>
+                            <p class="text-2xl font-bold text-slate-800">{{ auditorias.filter(a => getEstadoAuditoriaName(a.estado) === 'Planificada').length }}</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                        <div class="bg-red-100 text-red-600 rounded-full p-3 mr-4">
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-500">No Conformidades Abiertas</p>
+                            <p class="text-2xl font-bold text-slate-800">{{ noconformidades.filter(nc => nc.estado !== 'Cerrada').length }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-slate-700 mb-4">Origen de No Conformidades</h3>
+                        <div class="h-64">
+                            <canvas id="noConformidadesOrigenChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-slate-700 mb-4">Estado de Auditorías</h3>
+                        <div class="h-64">
+                            <canvas id="auditoriasStatusChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Objetivos View Toggle -->
+            <div v-if="currentModule === 'objetivos'" class="flex justify-end mb-4">
+                <div class="flex space-x-1 rounded-lg bg-slate-200 p-1">
+                    <button @click="objetivosViewMode = 'cards'"
+                            :class="{'bg-white text-slate-700 shadow': objetivosViewMode === 'cards', 'bg-transparent text-slate-500 hover:bg-slate-300': objetivosViewMode !== 'cards'}"
+                            class="px-3 py-1 text-sm font-medium rounded-md transition-colors">
+                        Tarjetas
+                    </button>
+                    <button @click="objetivosViewMode = 'list'"
+                            :class="{'bg-white text-slate-700 shadow': objetivosViewMode === 'list', 'bg-transparent text-slate-500 hover:bg-slate-300': objetivosViewMode !== 'list'}"
+                            class="px-3 py-1 text-sm font-medium rounded-md transition-colors">
+                        Lista
+                    </button>
+                </div>
+            </div>
+
+            <!-- Objetivos -->
+            <div v-if="currentModule === 'objetivos'">
+                <div v-if="objetivosViewMode === 'cards'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div v-for="objetivo in objetivos" :key="objetivo.id" class="bg-white p-6 rounded-lg shadow-md">
+                        <h4 class="font-bold text-lg text-slate-800">{{ objetivo.nombre }}</h4>
+                        <p class="text-sm text-slate-600 mt-2 mb-4">{{ objetivo.descripcion }}</p>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-semibold text-slate-500">Progreso</span>
+                            <span class="text-xs font-bold text-cyan-600">{{ objetivo.progreso }}%</span>
+                        </div>
+                        <div class="w-full bg-slate-200 rounded-full h-2.5">
+                            <div class="bg-cyan-500 h-2.5 rounded-full" :style="{ width: objetivo.progreso + '%' }"></div>
+                        </div>
+                        <p class="text-sm text-slate-500 mt-3">Responsable: {{ objetivo.responsable }}</p>
+                        <div class="mt-4 flex justify-end space-x-2">
+                            <button @click="openModal('edit', objetivo)" class="text-sm text-cyan-600 hover:text-cyan-900 font-semibold">
+                                <i class="fas fa-pen mr-1"></i>Editar
+                            </button>
+                            <button @click="deleteItem(objetivo)" class="text-sm text-red-600 hover:text-red-900 font-semibold">
+                                <i class="fas fa-trash mr-1"></i>Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div v-else class="bg-white rounded-lg shadow-md overflow-hidden">
+                    <table class="min-w-full divide-y divide-slate-200">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Objetivo</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Progreso</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Responsable</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-slate-200">
+                            <tr v-for="item in objetivos" :key="item.id" class="hover:bg-slate-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{{ item.nombre }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ item.progreso }}%</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ item.responsable }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                                    <button @click="openModal('edit', item)" class="text-cyan-600 hover:text-cyan-900" title="Editar">
+                                        <i class="fas fa-pen"></i>
+                                    </button>
+                                    <button @click="deleteItem(item)" class="text-red-600 hover:text-red-900" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Indicadores (KPIs) -->
+            <!-- Indicadores View Toggle -->
+            <div v-if="currentModule === 'indicadores'" class="flex justify-end mb-4">
+                <div class="flex space-x-1 rounded-lg bg-slate-200 p-1">
+                    <button @click="indicadoresViewMode = 'cards'"
+                            :class="{'bg-white text-slate-700 shadow': indicadoresViewMode === 'cards', 'bg-transparent text-slate-500 hover:bg-slate-300': indicadoresViewMode !== 'cards'}"
+                            class="px-3 py-1 text-sm font-medium rounded-md transition-colors">
+                        Tarjetas
+                    </button>
+                    <button @click="indicadoresViewMode = 'list'"
+                            :class="{'bg-white text-slate-700 shadow': indicadoresViewMode === 'list', 'bg-transparent text-slate-500 hover:bg-slate-300': indicadoresViewMode !== 'list'}"
+                            class="px-3 py-1 text-sm font-medium rounded-md transition-colors">
+                        Lista
+                    </button>
+                </div>
+            </div>
+
+            <div v-if="currentModule === 'indicadores'">
+                <div v-if="indicadoresViewMode === 'cards'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div v-for="kpi in indicadores" :key="kpi.id" class="bg-white p-6 rounded-lg shadow-md flex flex-col justify-between">
+                        <div>
+                            <h4 class="font-semibold text-slate-700">{{ kpi.nombre }}</h4>
+                            <p class="text-3xl font-bold text-slate-900 my-3">{{ kpi.valor_actual }}</p>
+                            <div class="flex items-center text-sm">
+                                <span class="font-semibold mr-2">Meta:</span>
+                                <span>{{ kpi.meta }}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center mt-4" :class="{ 'text-green-600': kpi.tendencia === 'positiva', 'text-red-600': kpi.tendencia === 'negativa' }">
+                            <i class="fas" :class="{ 'fa-arrow-up': kpi.tendencia === 'positiva', 'fa-arrow-down': kpi.tendencia === 'negativa' }"></i>
+                            <span class="ml-2 text-sm">Tendencia {{ kpi.tendencia }}</span>
+                        </div>
+                        <div class="mt-4 flex justify-end space-x-2">
+                            <button @click="openModal('edit', kpi)" class="text-sm text-cyan-600 hover:text-cyan-900 font-semibold">
+                                <i class="fas fa-pen mr-1"></i>Editar
+                            </button>
+                            <button @click="deleteItem(kpi)" class="text-sm text-red-600 hover:text-red-900 font-semibold">
+                                <i class="fas fa-trash mr-1"></i>Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div v-else class="bg-white rounded-lg shadow-md overflow-hidden">
+                    <table class="min-w-full divide-y divide-slate-200">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Indicador</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Meta</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Valor Actual</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Tendencia</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-slate-200">
+                            <tr v-for="item in indicadores" :key="item.id" class="hover:bg-slate-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{{ item.nombre }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ item.meta }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ item.valor_actual }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ item.tendencia }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                                    <button @click="openModal('edit', item)" class="text-cyan-600 hover:text-cyan-900" title="Editar">
+                                        <i class="fas fa-pen"></i>
+                                    </button>
+                                    <button @click="deleteItem(item)" class="text-red-600 hover:text-red-900" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+
+
+            <!-- Generic Table View for other modules -->
+            <!-- Catálogos -->
+            <div v-if="currentModule === 'avisos'">
+                <!-- Avisos Search Bar -->
+                <div class="mb-4">
+                    <input type="text" v-model="avisosSearchQuery" placeholder="Buscar por nombre, módulo..." class="block w-full sm:w-1/3 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                </div>
+                <div class="bg-white dark:bg-slate-800 rounded-lg shadow-md overflow-hidden">
+                    <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                        <thead class="bg-slate-50 dark:bg-slate-700">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Nombre del Aviso</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Módulo</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Días Previos</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Estado</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+                            <tr v-for="item in filteredAvisos" :key="item.id" class="hover:bg-slate-50 dark:hover:bg-slate-700" :class="{ 'bg-yellow-100 dark:bg-yellow-900/50': item.estado_alerta === 'Próximo a vencer', 'bg-red-100 dark:bg-red-900/50': item.estado_alerta === 'Vencido' }">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-white">{{ item.nombre }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700 dark:text-slate-300 capitalize">{{ item.modulo }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700 dark:text-slate-300">{{ item.dias_restantes !== null ? item.dias_restantes : 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <span :class="item.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
+                                        {{ item.activo ? 'Activo' : 'Inactivo' }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                                    <button @click="openModal('edit', item)" class="text-cyan-600 hover:text-cyan-900 dark:text-cyan-400 dark:hover:text-cyan-200">Editar</button>
+                                    <button @click="deleteItem(item)" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200">Eliminar</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div v-if="currentModule === 'catalogos'">
+                <!-- Tabs -->
+                <div class="mb-6 border-b border-slate-200">
+                    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                        <button v-for="(items, catalogName) in catalogos"
+                                @click="currentCatalog = catalogName"
+                                :class="[catalogName === currentCatalog ? 'border-cyan-500 text-cyan-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300']"
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize">
+                            {{ catalogName.replace(/_/g, ' ') }}
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Table for selected catalog -->
+                <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                    <table class="min-w-full divide-y divide-slate-200">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="w-1/4 px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">ID</th>
+                                <th class="w-1/2 px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Nombre</th>
+                                <th class="w-1/4 px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-slate-200">
+                            <tr v-for="item in catalogos[currentCatalog]" :key="item.id" class="hover:bg-slate-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{{ item.id }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ item.nombre }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                                    <button @click="openModal('edit', item)" class="text-cyan-600 hover:text-cyan-900">Editar</button>
+                                    <button @click="deleteItem(item)" class="text-red-600 hover:text-red-900">Eliminar</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Personal Search Bar -->
+            <div v-if="currentModule === 'personal'" class="mb-4">
+                <input type="text" v-model="personalSearchQuery" placeholder="Buscar por nombre, puesto, área..." class="block w-full sm:w-1/3 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+            </div>
+
+            <!-- Personal Toolbar: View Toggle -->
+            <div v-if="currentModule === 'personal'" class="flex justify-end mb-4">
+                <div class="flex space-x-1 rounded-lg bg-slate-200 p-1">
+                    <button @click="personalViewMode = 'cards'"
+                            :class="{'bg-white text-slate-700 shadow': personalViewMode === 'cards', 'bg-transparent text-slate-500 hover:bg-slate-300': personalViewMode !== 'cards'}"
+                            class="px-3 py-1 text-sm font-medium rounded-md transition-colors">
+                        Tarjetas
+                    </button>
+                    <button @click="personalViewMode = 'list'"
+                            :class="{'bg-white text-slate-700 shadow': personalViewMode === 'list', 'bg-transparent text-slate-500 hover:bg-slate-300': personalViewMode !== 'list'}"
+                            class="px-3 py-1 text-sm font-medium rounded-md transition-colors">
+                        Lista
+                    </button>
+                </div>
+            </div>
+
+            <!-- Usuarios (Administración) -->
+            <div v-if="currentModule === 'usuarios'">
+                <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                    <table class="min-w-full divide-y divide-slate-200">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Nombre</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Usuario</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Rol</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-slate-200">
+                            <tr v-for="u in usuarios" :key="u.id" class="hover:bg-slate-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{{ u.nombre }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ u.username }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <span :class="u.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-800'" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
+                                        {{ u.role }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                                    <button @click="openModal('edit', u)" class="text-cyan-600 hover:text-cyan-900">Editar</button>
+                                    <button @click="deleteItem(u)" class="text-red-600 hover:text-red-900">Eliminar</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- No Conformidades Search Bar -->
+            <div v-if="currentModule === 'noconformidades'" class="mb-4">
+                <input type="text" v-model="noConformidadesSearchQuery" placeholder="Buscar por descripción, origen, estado, responsable..." class="block w-full sm:w-1/3 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+            </div>
+
+            <!-- No Conformidades Toolbar: Estado Filter + View Toggle -->
+            <div v-if="currentModule === 'noconformidades'" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div class="flex items-center space-x-3">
+                    <span class="text-sm font-medium text-slate-700">Estado:</span>
+                    <select v-model.number="noconformidadesEstadoFilter" class="px-3 py-1 text-sm border border-slate-300 rounded-md bg-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500">
+                        <option :value="0">Todos</option>
+                        <option v-for="opt in catalogos.estado_auditoria" :key="opt.id" :value="opt.id">{{ opt.nombre }}</option>
+                    </select>
+                </div>
+                <div class="flex justify-end">
+                    <div class="flex space-x-1 rounded-lg bg-slate-200 p-1">
+                        <button @click="noconformidadesViewMode = 'cards'"
+                                :class="{'bg-white text-slate-700 shadow': noconformidadesViewMode === 'cards', 'bg-transparent text-slate-500 hover:bg-slate-300': noconformidadesViewMode !== 'cards'}"
+                                class="px-3 py-1 text-sm font-medium rounded-md transition-colors">
+                            Tarjetas
+                        </button>
+                        <button @click="noconformidadesViewMode = 'list'"
+                                :class="{'bg-white text-slate-700 shadow': noconformidadesViewMode === 'list', 'bg-transparent text-slate-500 hover:bg-slate-300': noconformidadesViewMode !== 'list'}"
+                                class="px-3 py-1 text-sm font-medium rounded-md transition-colors">
+                            Lista
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Auditorias Search Bar -->
+            <div v-if="currentModule === 'auditorias'" class="mb-4">
+                <input type="text" v-model="auditoriasSearchQuery" placeholder="Buscar por tipo, área, auditor, estado..." class="block w-full sm:w-1/3 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+            </div>
+
+            <!-- Auditorías Toolbar: Estado Filter + View Toggle -->
+            <div v-if="currentModule === 'auditorias'" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div class="flex items-center space-x-3">
+                    <span class="text-sm font-medium text-slate-700">Estado:</span>
+                    <select v-model.number="auditoriasEstadoFilter" class="px-3 py-1 text-sm border border-slate-300 rounded-md bg-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500">
+                        <option :value="0">Todos</option>
+                        <option v-for="opt in catalogos.estado_auditoria" :key="opt.id" :value="opt.id">{{ opt.nombre }}</option>
+                    </select>
+                </div>
+                <div class="flex justify-end">
+                    <div class="flex space-x-1 rounded-lg bg-slate-200 p-1">
+                        <button @click="auditoriasViewMode = 'cards'"
+                                :class="{'bg-white text-slate-700 shadow': auditoriasViewMode === 'cards', 'bg-transparent text-slate-500 hover:bg-slate-300': auditoriasViewMode !== 'cards'}"
+                                class="px-3 py-1 text-sm font-medium rounded-md transition-colors">
+                            Tarjetas
+                        </button>
+                        <button @click="auditoriasViewMode = 'list'"
+                                :class="{'bg-white text-slate-700 shadow': auditoriasViewMode === 'list', 'bg-transparent text-slate-500 hover:bg-slate-300': auditoriasViewMode !== 'list'}"
+                                class="px-3 py-1 text-sm font-medium rounded-md transition-colors">
+                            Lista
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Procesos Search Bar -->
+            <div v-if="currentModule === 'procesos'" class="mb-4">
+                <div class="flex justify-between items-center mb-4">
+                    <input type="text" v-model="procesosSearchQuery" placeholder="Buscar por nombre, responsable..." class="w-1/2 px-4 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500">
+                    <div class="flex items-center space-x-4">
+                        <span class="text-sm font-medium text-slate-700">Estado:</span>
+                        <div class="flex items-center space-x-2">
+                            <label class="flex items-center">
+                                <input type="radio" v-model="procesosStatusFilter" value="Todos" class="form-radio h-4 w-4 text-cyan-600">
+                                <span class="ml-2 text-sm text-slate-700">Todos</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" v-model="procesosStatusFilter" value="Activos" class="form-radio h-4 w-4 text-cyan-600">
+                                <span class="ml-2 text-sm text-slate-700">Activos</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" v-model="procesosStatusFilter" value="Inactivos" class="form-radio h-4 w-4 text-cyan-600">
+                                <span class="ml-2 text-sm text-slate-700">Inactivos</span>
+                            </label>
+                        </div>
+                        <div class="border-l border-slate-200 h-6 mx-2"></div>
+                        <!-- Filtro por Área -->
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm font-medium text-slate-700">Área:</span>
+                            <select v-model.number="procesosAreaFilter" class="px-3 py-1 text-sm border border-slate-300 rounded-md bg-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500">
+                                <option :value="0">Todas</option>
+                                <option v-for="area in catalogos.areas" :key="area.id" :value="area.id">{{ area.nombre }}</option>
+                            </select>
+                        </div>
+                        <div class="border-l border-slate-200 h-6 mx-2"></div>
+                        <!-- Procesos View Toggle -->
+                        <div class="flex space-x-1 rounded-lg bg-slate-200 p-1">
+                            <button @click="procesosViewMode = 'cards'"
+                                    :class="{'bg-white text-slate-700 shadow': procesosViewMode === 'cards', 'bg-transparent text-slate-500 hover:bg-slate-300': procesosViewMode !== 'cards'}"
+                                    class="px-3 py-1 text-sm font-medium rounded-md transition-colors">
+                                Tarjetas
+                            </button>
+                            <button @click="procesosViewMode = 'list'"
+                                    :class="{'bg-white text-slate-700 shadow': procesosViewMode === 'list', 'bg-transparent text-slate-500 hover:bg-slate-300': procesosViewMode !== 'list'}"
+                                    class="px-3 py-1 text-sm font-medium rounded-md transition-colors">
+                                Lista
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Procesos Cards View -->
+            <div v-if="currentModule === 'procesos' && procesosViewMode === 'cards'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                <div v-for="proc in filteredProcesos" :key="proc.id" class="bg-white p-6 rounded-lg shadow-md flex flex-col">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h4 class="text-lg font-semibold text-slate-800">{{ proc.nombre }}</h4>
+                            <p class="text-sm text-slate-500">Área: <span class="font-medium">{{ getAreaName(proc.area_id) }}</span></p>
+                            <p class="text-sm text-slate-500">Responsable: <span class="font-medium">{{ getResponsableName(proc.responsable_id) }}</span></p>
+                        </div>
+                        <span :class="[
+                                'px-2 py-1 text-xs rounded-full font-semibold',
+                                proc.activo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'
+                            ]">{{ proc.activo ? 'Activo' : 'Inactivo' }}</span>
+                    </div>
+                    <div class="mt-3 grid grid-cols-1 gap-2 text-sm text-slate-600">
+                        <div><span class="font-medium text-slate-700">Entradas:</span> {{ proc.entradas }}</div>
+                        <div><span class="font-medium text-slate-700">Salidas:</span> {{ proc.salidas }}</div>
+                    </div>
+                    <div class="mt-4 flex justify-end space-x-3 text-sm">
+                        <button @click="openModal('edit', proc)" class="text-cyan-600 hover:text-cyan-900" title="Editar">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button @click="deleteItem(proc)" class="text-red-600 hover:text-red-900" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Documentos Filter -->
+            <div v-if="currentModule === 'documentos'" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div class="flex space-x-1 rounded-lg bg-slate-200 p-1 self-end sm:self-auto">
+                    <button v-for="status in documentosStatusOptions"
+                            @click="documentosFilter = status"
+                            :class="{'bg-white text-slate-700 shadow': documentosFilter === status, 'bg-transparent text-slate-500 hover:bg-slate-300': documentosFilter !== status}"
+                            class="px-3 py-1 text-sm font-medium rounded-md transition-colors">
+                        {{ status }}
+                    </button>
+                </div>
+                <!-- Documentos View Toggle -->
+                <div class="flex justify-end">
+                    <div class="flex space-x-1 rounded-lg bg-slate-200 p-1">
+                        <button @click="documentosViewMode = 'cards'"
+                                :class="{'bg-white text-slate-700 shadow': documentosViewMode === 'cards', 'bg-transparent text-slate-500 hover:bg-slate-300': documentosViewMode !== 'cards'}"
+                                class="px-3 py-1 text-sm font-medium rounded-md transition-colors">
+                            Tarjetas
+                        </button>
+                        <button @click="documentosViewMode = 'list'"
+                                :class="{'bg-white text-slate-700 shadow': documentosViewMode === 'list', 'bg-transparent text-slate-500 hover:bg-slate-300': documentosViewMode !== 'list'}"
+                                class="px-3 py-1 text-sm font-medium rounded-md transition-colors">
+                            Lista
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Documentos Cards View -->
+            <div v-if="currentModule === 'documentos' && documentosViewMode === 'cards'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                <div v-for="doc in filteredDocumentos" :key="doc.id" class="bg-white p-6 rounded-lg shadow-md flex flex-col">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h4 class="text-lg font-semibold text-slate-800">{{ doc.nombre }}</h4>
+                            <p class="text-sm text-slate-500">Código: <span class="font-mono">{{ doc.codigo }}</span></p>
+                        </div>
+                        <span :class="[
+                                'px-2 py-1 text-xs rounded-full font-semibold',
+                                doc.estado === 'Vigente' ? 'bg-green-100 text-green-700' :
+                                doc.estado === 'Obsoleto' ? 'bg-red-100 text-red-700' :
+                                doc.estado === 'En Revisión' ? 'bg-yellow-100 text-yellow-700' : 'bg-slate-100 text-slate-700'
+                            ]">{{ doc.estado }}</span>
+                    </div>
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-sm text-slate-600">
+                        <div><span class="font-medium text-slate-700">Versión:</span> {{ doc.version }}</div>
+                        <div><span class="font-medium text-slate-700">Fecha de Revisión:</span> {{ formatDate(doc.fecha_revision) }}</div>
+                    </div>
+                    <div class="mt-4 flex justify-end space-x-3 text-sm">
+                        <button @click="openPreview(doc)" class="text-rose-600 hover:text-rose-800" title="Previsualizar PDF">
+                            <i class="fas fa-file-pdf"></i>
+                        </button>
+                        <button @click="openHistoryModal(doc)" class="text-indigo-600 hover:text-indigo-800" title="Historial">
+                            <i class="fas fa-clock-rotate-left"></i>
+                        </button>
+                        <button @click="openModal('edit', doc)" class="text-cyan-600 hover:text-cyan-900" title="Editar">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button @click="deleteItem(doc)" class="text-red-600 hover:text-red-900" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Auditorías Cards View -->
+            <div v-if="currentModule === 'auditorias' && auditoriasViewMode === 'cards'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                <div v-for="aud in filteredAuditorias" :key="aud.id" class="bg-white p-6 rounded-lg shadow-md flex flex-col">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h4 class="text-lg font-semibold text-slate-800">Auditoría {{ aud.tipo }}</h4>
+                            <p class="text-sm text-slate-500">Área: <span class="font-medium">{{ getAreaName(aud.area_auditada_id) }}</span></p>
+                            <p class="text-sm text-slate-500">Auditor Líder: <span class="font-medium">{{ getAuditorLiderName(aud.auditor_lider_id) }}</span></p>
+                        </div>
+                        <span :class="['px-2 py-1 text-xs rounded-full font-semibold', getAuditoriaStatusClass(aud.estado)]">{{ getEstadoAuditoriaName(aud.estado) }}</span>
+                    </div>
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-sm text-slate-600">
+                        <div><span class="font-medium text-slate-700">Inicio:</span> {{ formatDate(aud.fecha_inicio) }}</div>
+                        <div><span class="font-medium text-slate-700">Fin:</span> {{ formatDate(aud.fecha_fin) }}</div>
+                    </div>
+                    <div class="mt-4 flex justify-end space-x-3 text-sm">
+                        <button @click="openModal('edit', aud)" class="text-cyan-600 hover:text-cyan-900" title="Editar">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button @click="deleteItem(aud)" class="text-red-600 hover:text-red-900" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- No Conformidades Cards View -->
+            <div v-if="currentModule === 'noconformidades' && noconformidadesViewMode === 'cards'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                <div v-for="nc in filteredNoConformidades" :key="nc.id" class="bg-white p-6 rounded-lg shadow-md flex flex-col">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h4 class="text-lg font-semibold text-slate-800">No Conformidad</h4>
+                            <p class="text-sm text-slate-500">Origen: <span class="font-medium">{{ getOrigenName(nc.origen_id) }}</span></p>
+                            <p class="text-sm text-slate-500">Responsable: <span class="font-medium">{{ getResponsableName(nc.responsable_id) }}</span></p>
+                        </div>
+                        <span :class="['px-2 py-1 text-xs rounded-full font-semibold', getAuditoriaStatusClass(nc.estado)]">{{ getEstadoAuditoriaName(nc.estado) }}</span>
+                    </div>
+                    <p class="mt-3 text-sm text-slate-700 line-clamp-3">{{ nc.descripcion }}</p>
+                    <div class="mt-4 flex justify-end space-x-3 text-sm">
+                        <button @click="openModal('edit', nc)" class="text-cyan-600 hover:text-cyan-900" title="Editar">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button @click="deleteItem(nc)" class="text-red-600 hover:text-red-900" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Personal Cards View -->
+            <div v-if="currentModule === 'personal' && personalViewMode === 'cards'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                <div v-for="p in filteredPersonal" :key="p.id" class="bg-white rounded-lg shadow-md p-5 flex">
+                    <img :src="p.foto_url" :alt="p.nombre" class="h-16 w-16 rounded-full object-cover border-2 border-slate-200 mr-4">
+                    <div class="flex-1">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <h4 class="text-base font-semibold text-slate-800">{{ p.nombre }}</h4>
+                                <p class="text-sm text-slate-600">{{ getPuestoName(p.puesto_id) }} · {{ getAreaName(p.area_id) }}</p>
+                            </div>
+                            <div class="ml-2 flex space-x-3 text-sm">
+                                <button @click="openModal('edit', p)" class="text-cyan-600 hover:text-cyan-900" title="Editar">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <button @click="deleteItem(p)" class="text-red-600 hover:text-red-900" title="Eliminar">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p v-if="p.email || p.telefono" class="mt-2 text-sm text-slate-500">
+                            <span v-if="p.email">{{ p.email }}</span>
+                            <span v-if="p.email && p.telefono" class="mx-2">•</span>
+                            <span v-if="p.telefono">{{ p.telefono }}</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="!['dashboard', 'objetivos', 'indicadores', 'catalogos'].includes(currentModule) && !((currentModule === 'documentos' && documentosViewMode === 'cards') || (currentModule === 'procesos' && procesosViewMode === 'cards') || (currentModule === 'auditorias' && auditoriasViewMode === 'cards') || (currentModule === 'noconformidades' && noconformidadesViewMode === 'cards') || (currentModule === 'personal' && personalViewMode === 'cards'))" class="bg-white rounded-lg shadow-md overflow-hidden">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <!-- Headers for Dashboard -->
+                        <tr v-if="currentModule === 'dashboard'">
+                            <th v-for="header in ['Sistema', 'Métrica', 'Valor']" scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ header }}</th>
+                            <th scope="col" class="relative px-6 py-3"><span class="sr-only">Acciones</span></th>
+                        </tr>
+                        <!-- Headers for Objetivos -->
+                        <tr v-if="currentModule === 'objetivos'">
+                            <th v-for="header in ['Objetivo', 'Responsable', 'Progreso']" scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ header }}</th>
+                            <th scope="col" class="relative px-6 py-3"><span class="sr-only">Acciones</span></th>
+                        </tr>
+                        <!-- Headers for Indicadores -->
+                        <tr v-if="currentModule === 'indicadores'">
+                            <th v-for="header in ['Indicador', 'Objetivo Asociado', 'Meta', 'Valor Actual', 'Tendencia']" scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ header }}</th>
+                            <th scope="col" class="relative px-6 py-3"><span class="sr-only">Acciones</span></th>
+                        </tr>
+                        <!-- Headers for Documentos -->
+                        <tr v-if="currentModule === 'documentos'">
+                            <th v-for="header in ['Código', 'Nombre', 'Versión', 'Revisión', 'Estado']" scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ header }}</th>
+                            <th scope="col" class="relative px-6 py-3"><span class="sr-only">Acciones</span></th>
+                        </tr>
+                        <!-- Headers for Procesos -->
+                        <tr v-if="currentModule === 'procesos'">
+                            <th v-for="header in ['Nombre', 'Responsable', 'Área', 'Entradas', 'Salidas', 'Estado']" scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ header }}</th>
+                            <th scope="col" class="relative px-6 py-3"><span class="sr-only">Acciones</span></th>
+                        </tr>
+                        <!-- Headers for Auditorias -->
+                        <tr v-if="currentModule === 'auditorias'">
+                            <th v-for="header in ['Tipo', 'Área Auditada', 'Auditor Líder', 'Fechas', 'Estado']" scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ header }}</th>
+                            <th scope="col" class="relative px-6 py-3"><span class="sr-only">Acciones</span></th>
+                        </tr>
+                        <!-- Headers for No Conformidades -->
+                        <tr v-if="currentModule === 'noconformidades'">
+                            <th v-for="header in ['Descripción', 'Origen', 'Estado', 'Responsable']" scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ header }}</th>
+                            <th scope="col" class="relative px-6 py-3"><span class="sr-only">Acciones</span></th>
+                        </tr>
+                        <!-- Headers for Personal -->
+                        <tr v-if="currentModule === 'personal'">
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Nombre</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Puesto</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Área</th>
+                            <th scope="col" class="relative px-6 py-3"><span class="sr-only">Acciones</span></th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-slate-200">
+                        <!-- Documentos Rows -->
+                        <template v-if="currentModule === 'documentos' && documentosViewMode === 'list'">
+                            <tr v-for="documento in filteredDocumentos" :key="documento.id" class="hover:bg-slate-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{{ documento.codigo }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ documento.nombre }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ documento.version }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ formatDate(documento.fecha_revision) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                          :class="documento.estado === 'Vigente' ? 'bg-green-100 text-green-800' : (documento.estado === 'Obsoleto' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800')">
+                                        {{ documento.estado }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                                    <button @click="openPreview(documento)" class="text-rose-600 hover:text-rose-900" title="Previsualizar PDF">
+                                        <i class="fas fa-file-pdf"></i>
+                                    </button>
+                                    <button @click="openHistoryModal(documento)" class="text-indigo-600 hover:text-indigo-900" title="Historial">
+                                        <i class="fas fa-clock-rotate-left"></i>
+                                    </button>
+                                    <button @click="openModal('edit', documento)" class="text-cyan-600 hover:text-cyan-900" title="Editar">
+                                        <i class="fas fa-pen"></i>
+                                    </button>
+                                    <button @click="deleteItem(documento)" class="text-red-600 hover:text-red-900" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                        <!-- Procesos Rows -->
+                        <template v-if="currentModule === 'procesos' && procesosViewMode === 'list'">
+                            <tr v-for="item in filteredProcesos" :key="item.id" class="hover:bg-slate-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{{ item.nombre }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ getResponsableName(item.responsable_id) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ getAreaName(item.area_id) }}</td>
+                                <td class="px-6 py-4 text-sm text-slate-500">{{ item.entradas }}</td>
+                                <td class="px-6 py-4 text-sm text-slate-500">{{ item.salidas }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="item.activo ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'">
+                                        {{ item.activo ? 'Activo' : 'Inactivo' }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                                    <button @click="openModal('edit', item)" class="text-cyan-600 hover:text-cyan-900" title="Editar">
+                                        <i class="fas fa-pen"></i>
+                                    </button>
+                                    <button @click="deleteItem(item)" class="text-red-600 hover:text-red-900" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+
+                        <!-- Auditorias Rows -->
+                        <template v-if="currentModule === 'auditorias' && auditoriasViewMode === 'list'">
+                            <tr v-for="item in filteredAuditorias" :key="item.id" class="hover:bg-slate-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{{ item.tipo }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ getAreaName(item.area_auditada_id) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ getAuditorLiderName(item.auditor_lider_id) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ formatDate(item.fecha_inicio) }} - {{ formatDate(item.fecha_fin) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="getAuditoriaStatusClass(item.estado)">
+                                        {{ getEstadoAuditoriaName(item.estado) }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                                    <button @click="openModal('edit', item)" class="text-cyan-600 hover:text-cyan-900" title="Editar">
+                                        <i class="fas fa-pen"></i>
+                                    </button>
+                                    <button @click="deleteItem(item)" class="text-red-600 hover:text-red-900" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+
+                        <!-- No Conformidades Rows -->
+                        <template v-if="currentModule === 'noconformidades' && noconformidadesViewMode === 'list'">
+                            <tr v-for="item in filteredNoConformidades" :key="item.id" class="hover:bg-slate-50">
+                                <td class="px-6 py-4 text-sm text-slate-700">{{ item.descripcion }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ getOrigenName(item.origen_id) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="getAuditoriaStatusClass(item.estado)">
+                                        {{ getEstadoAuditoriaName(item.estado) }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ getResponsableName(item.responsable_id) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                                    <button @click="openModal('edit', item)" class="text-cyan-600 hover:text-cyan-900" title="Editar">
+                                        <i class="fas fa-pen"></i>
+                                    </button>
+                                    <button @click="deleteItem(item)" class="text-red-600 hover:text-red-900" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+
+                        <!-- Personal Rows -->
+                        <template v-if="currentModule === 'personal' && personalViewMode === 'list'">
+                            <tr v-for="item in filteredPersonal" :key="item.id" class="hover:bg-slate-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <img :src="item.foto_url" :alt="item.nombre" class="h-10 w-10 rounded-full">
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{{ item.nombre }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ getPuestoName(item.puesto_id) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ getAreaName(item.area_id) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                                    <button @click="openModal('edit', item)" class="text-cyan-600 hover:text-cyan-900" title="Editar">
+                                        <i class="fas fa-pen"></i>
+                                    </button>
+                                    <button @click="deleteItem(item)" class="text-red-600 hover:text-red-900" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Main Add/Edit Modal -->
+    <div v-if="isModalOpen" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50" @click.self="closeModal">
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center p-6 border-b border-slate-200 dark:border-slate-700">
+                <h3 class="text-xl font-bold text-slate-800 dark:text-slate-100">{{ modalTitle }}</h3>
+                <button @click="closeModal" class="text-2xl font-light text-slate-500 hover:text-slate-800 dark:hover:text-slate-300">&times;</button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 overflow-y-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <template v-for="key in modalSchemaKeys">
+                        <div v-if="!['id', 'historial'].includes(key)" class="flex flex-col">
+                            
+                            <!-- Field Label -->
+                            <label :for="key" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{{ getLabel(key) }}</label>
+
+                            <!-- SELECT for foreign keys -->
+                            <select v-if="isForeignKey(key)" :id="key" v-model="currentItem[key]" class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
+                                <option :value="null">Seleccione...</option>
+                                <option v-for="option in getOptionsFor(key)" :value="option.id">{{ option.nombre }}</option>
+                            </select>
+
+                            <!-- Special SELECT for 'modulo' in 'avisos' -->
+                            <select v-else-if="currentModule === 'avisos' && key === 'modulo'" :id="key" v-model="currentItem[key]" class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <option disabled value="">Seleccione un módulo</option>
+                                <option v-for="module in filteredModules" :key="module.id" :value="module.id">{{ module.name }}</option>
+                            </select>
+
+                            <!-- RANGE SLIDER for 'progreso' -->
+                            <div v-else-if="key === 'progreso'" class="flex items-center mt-1">
+                                <input type="range" :id="key" v-model="currentItem[key]" min="0" max="100" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700">
+                                <span class="ml-4 w-12 text-sm font-medium text-slate-700 dark:text-slate-300 text-center">{{ currentItem.progreso }}%</span>
+                            </div>
+
+                            <!-- TEXTAREA for long text -->
+                            <textarea v-else-if="['descripcion', 'entradas', 'salidas'].includes(key)" :id="key" v-model="currentItem[key]" rows="3" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm"></textarea>
+
+                            <!-- DATE input -->
+                            <input v-else-if="key.includes('fecha')" type="date" :id="key" v-model="currentItem[key]" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm">
+
+                            <!-- CHECKBOX for booleans -->
+                            <!-- TOGGLE SWITCH for booleans -->
+                            <div v-else-if="typeof currentItem[key] === 'boolean'" class="flex items-center mt-2">
+                                <button type="button" @click="currentItem[key] = !currentItem[key]" :class="currentItem[key] ? 'bg-cyan-600' : 'bg-slate-300'" class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500">
+                                    <span :class="currentItem[key] ? 'translate-x-6' : 'translate-x-1'" class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform"/>
+                                </button>
+                                <span class="ml-3 text-sm font-medium text-slate-700 dark:text-slate-300">{{ currentItem[key] ? 'Activo' : 'Inactivo' }}</span>
+                            </div>
+                            
+                            <!-- FILE input for 'file_url' -->
+                            <div v-else-if="key === 'file_url'">
+                                 <p v-if="modalMode === 'edit' && currentItem.file_url" class="mt-1 mb-1 text-sm text-slate-500">
+                                     Actual: <a :href="currentItem.file_url" target="_blank" class="text-cyan-600 hover:underline">{{ getFileName(currentItem.file_url) }}</a>
+                                 </p>
+                                 <input type="file" @change="handleFileUpload" class="block w-full text-sm text-slate-500 border border-slate-300 rounded-lg cursor-pointer bg-slate-50 dark:text-slate-400 focus:outline-none dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 file:bg-slate-200 file:text-slate-700 file:border-0 file:py-2 file:px-4 file:mr-4 hover:file:bg-slate-300 dark:file:bg-slate-600 dark:file:text-slate-200 dark:hover:file:bg-slate-500"/>
+                            </div>
+
+                            <!-- FILE input for 'foto_url' -->
+                            <div v-else-if="key === 'foto_url'">
+                                 <img v-if="currentItem.foto_url" :src="currentItem.foto_url" class="h-20 w-20 rounded-full object-cover mb-2 border-2 border-slate-300">
+                                 <input type="file" @change="handleFotoUpload" class="block w-full text-sm text-slate-500 border border-slate-300 rounded-lg cursor-pointer bg-slate-50 dark:text-slate-400 focus:outline-none dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 file:bg-slate-200 file:text-slate-700 file:border-0 file:py-2 file:px-4 file:mr-4 hover:file:bg-slate-300 dark:file:bg-slate-600 dark:file:text-slate-200 dark:hover:file:bg-slate-500"/>
+                            </div>
+
+                            <!-- Default TEXT input -->
+                            <!-- Document Status Dropdown -->
+                            <select v-else-if="currentModule === 'documentos' && key === 'estado'" :id="key" v-model="currentItem[key]" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm">
+                                <option v-for="estado in documentosEstados" :key="estado" :value="estado">{{ estado }}</option>
+                            </select>
+                            <select v-else-if="currentModule === 'noconformidades' && key === 'estado'" :id="key" v-model.number="currentItem[key]" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm">
+                                <option v-for="option in catalogos.estado_auditoria" :value="option.id">{{ option.nombre }}</option>
+                            </select>
+
+                            <!-- Auditorias Estado Dropdown -->
+                            <select v-else-if="currentModule === 'auditorias' && key === 'estado'" :id="key" v-model.number="currentItem[key]" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm">
+                                <option v-for="option in catalogos.estado_auditoria" :value="option.id">{{ option.nombre }}</option>
+                            </select>
+                            <input v-else type="text" :id="key" v-model="currentItem[key]" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm">
+                        
+                        </div>
+                    </template>
+
+                    <!-- Special field for 'descripcion_cambios' in 'documentos' module during edit mode -->
+                    <div v-if="currentModule === 'documentos' && modalMode === 'edit'" class="md:col-span-2">
+                        <label for="descripcion_cambios" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Descripción de Cambios (requerido si cambia la versión)</label>
+                        <textarea id="descripcion_cambios" v-model="currentItem.descripcion_cambios" rows="3" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="flex justify-end space-x-4 p-6 border-t border-slate-200 dark:border-slate-700">
+                <button @click="closeModal" class="px-6 py-2 rounded-md text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 font-semibold">Cancelar</button>
+                <button @click="saveItem" class="px-6 py-2 rounded-md text-white bg-cyan-600 hover:bg-cyan-700 font-semibold">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Preview Modal -->
+    <div v-if="isPreviewModalOpen" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50" @click.self="closePreview">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+            <!-- Header -->
+            <div class="flex justify-between items-center p-4 border-b border-slate-200">
+                <h3 class="text-lg font-semibold text-slate-800">Previsualización de Documento</h3>
+                <button @click="closePreview" class="text-2xl font-light text-slate-500 hover:text-slate-800">&times;</button>
+            </div>
+            <!-- Body -->
+            <div class="p-0">
+                <iframe :src="previewSrc" class="w-full h-[75vh]" frameborder="0"></iframe>
+            </div>
+            <!-- Footer -->
+            <div class="flex justify-end space-x-3 p-4 border-t border-slate-200">
+                <a v-if="previewSrc" :href="previewSrc" target="_blank" class="px-4 py-2 rounded-md text-sm font-medium text-cyan-700 bg-cyan-100 hover:bg-cyan-200">Abrir en nueva pestaña</a>
+                <button @click="closePreview" class="px-4 py-2 rounded-md text-sm font-medium text-white bg-slate-600 hover:bg-slate-700">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Reset Modal -->
+    <div v-if="isResetModalOpen" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50" @click.self="closeResetModal">
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center p-6 border-b border-slate-200 dark:border-slate-700">
+                <h3 class="text-xl font-bold text-slate-800 dark:text-slate-100">Restablecer datos (múltiple)</h3>
+                <button @click="closeResetModal" class="text-2xl font-light text-slate-500 hover:text-slate-800 dark:hover:text-slate-300">&times;</button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-6">
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-700 mb-3">Módulos</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <label v-for="mod in ['objetivos','indicadores','documentos','procesos','auditorias','noconformidades','avisos','personal']" :key="mod" class="flex items-center space-x-2">
+                            <input type="checkbox" class="h-4 w-4 text-cyan-600" :value="mod" v-model="resetSelectionModules">
+                            <span class="text-sm text-slate-700">{{ (modules.find(m=>m.id===mod)?.name) || mod }}</span>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-700 mb-3">Catálogos</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <label v-for="cat in Object.keys(catalogos)" :key="cat" class="flex items-center space-x-2 capitalize">
+                            <input type="checkbox" class="h-4 w-4 text-cyan-600" :value="cat" v-model="resetSelectionCatalogs">
+                            <span class="text-sm text-slate-700">{{ cat.replace(/_/g,' ') }}</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3 p-6 border-t border-slate-200 dark:border-slate-700">
+                <button @click="closeResetModal" class="px-4 py-2 rounded-md text-sm font-medium text-slate-700 bg-slate-200 hover:bg-slate-300">Cancelar</button>
+                <button @click="confirmResetSelection" class="px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700">Restablecer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div v-if="isHistoryModalOpen" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+        <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-4xl">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800">Historial de Versiones</h3>
+                    <p class="text-slate-600 mt-1">Documento: {{ historyData.nombre }} ({{ historyData.codigo }})</p>
+                </div>
+                <button @click="closeHistoryModal" class="text-2xl font-light text-slate-500 hover:text-slate-800">&times;</button>
+            </div>
+            <div class="modal-body max-h-[60vh] overflow-y-auto pr-2">
+                <div v-if="historyData.historial && historyData.historial.length > 0">
+                    <table class="min-w-full divide-y divide-slate-200">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Versión</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Fecha</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Editor</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Cambios</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-slate-200">
+                            <tr v-for="entry in historyData.historial" :key="entry.version">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{{ entry.version }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ formatDate(entry.fecha_revision) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{{ entry.editor }}</td>
+                                <td class="px-6 py-4 text-sm text-slate-500">{{ entry.cambios }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div v-else-if="!historyData.historial || historyData.historial.length === 0" class="text-center py-10">
+                    <i class="fas fa-box-open fa-3x text-slate-300"></i>
+                    <p class="mt-4 text-slate-500">No hay historial de versiones para este documento.</p>
+                </div>
+            </div>
+            <div class="flex justify-end mt-8">
+                <button @click="closeHistoryModal" class="px-6 py-2 rounded-md text-white bg-slate-600 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

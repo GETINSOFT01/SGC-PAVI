@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vue.js CDN Load Test</title>
+    <script>
+        alert('1. HTML Head: Script tag is being processed.');
+    </script>
+    <script src="https://unpkg.com/vue@3/dist/vue.esm-browser.js"></script>
+</head>
+<body>
+    <div id="test-app">
+        <h1>Vue.js CDN Load Test</h1>
+        <p>{{ message }}</p>
+    </div>
+
+    <script type="module">
+        alert('2. Body Script: Attempting to use Vue.');
+        try {
+            const { createApp } = Vue;
+            createApp({
+                data() {
+                    return {
+                        message: 'Test Successful! Vue is loaded and running.'
+                    };
+                }
+            }).mount('#test-app');
+            alert('3. Vue app mounted successfully!');
+        } catch (e) {
+            alert('4. ERROR: Vue app failed to mount. Error: ' + e.message);
+            document.getElementById('test-app').innerHTML += '<p style="color:red;">Test FAILED. Vue could not be initialized. Check browser console.</p>';
+        }
+    </script>
+</body>
+</html>
