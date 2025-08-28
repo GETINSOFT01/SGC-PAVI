@@ -3,14 +3,37 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 
 const app = express();
 const port = process.env.PORT || 3003;
 
 app.use(cors());
 app.use(bodyParser.json());
+
+// Ensure uploads directory exists
+const uploadsDir = path.resolve(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 // Serve uploaded files (PDFs, images) statically
-app.use('/uploads', express.static(path.resolve(__dirname, 'uploads')));
+app.use('/uploads', express.static(uploadsDir));
+
+// Multer storage configuration
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadsDir);
+    },
+    filename: function (req, file, cb) {
+        const safeName = file.originalname.replace(/[^a-zA-Z0-9_.-]/g, '_');
+        const timestamp = Date.now();
+        const finalName = `${timestamp}_${safeName}`;
+        cb(null, finalName);
+    }
+});
+const upload = multer({ storage });
 
 // Connect to SQLite database (use project root sgc.db)
 const dbPath = path.resolve(__dirname, '../sgc.db');
@@ -19,6 +42,21 @@ const db = new sqlite3.Database(dbPath, (err) => {
         console.error(err.message);
     }
     console.log('Connected to the sgc.db database.');
+});
+
+// File upload endpoint
+// Returns JSON: { path: '/uploads/<filename>', filename: '<filename>' }
+app.post('/api/upload', upload.single('file'), (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        const publicPath = `/uploads/${req.file.filename}`;
+        res.status(201).json({ path: publicPath, filename: req.file.filename });
+    } catch (err) {
+        console.error('Upload error:', err);
+        res.status(500).json({ error: 'Upload failed' });
+    }
 });
 
 // Ensure usuarios table exists and seed a default admin on first run
