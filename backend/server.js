@@ -5,7 +5,7 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
 const app = express();
-const port = 3003;
+const port = process.env.PORT || 3003;
 
 app.use(cors());
 app.use(bodyParser.json());

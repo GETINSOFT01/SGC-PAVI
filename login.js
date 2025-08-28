@@ -3,7 +3,12 @@ import { createApp } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js'
 createApp({
     data() {
         return {
-            apiBase: 'http://localhost:3003',
+            // API base configurable en runtime:
+            // 1) window.API_BASE (inyectable via <script> en HTML o Snippet en Netlify)
+            // 2) localStorage.API_BASE
+            // 3) Por defecto: localhost en desarrollo, relativo en producción (Netlify proxy /api)
+            apiBase: (typeof window !== 'undefined' && (window.API_BASE || localStorage.getItem('API_BASE'))) ||
+                     ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://localhost:3003' : ''),
             username: '',
             password: '',
             error: '',
@@ -19,7 +24,8 @@ createApp({
                 if (!username || !password) {
                     throw new Error('Usuario y contraseña son requeridos');
                 }
-                const resp = await fetch(`${this.apiBase}/api/login`, {
+                const base = this.apiBase || '';
+                const resp = await fetch(`${base}/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
