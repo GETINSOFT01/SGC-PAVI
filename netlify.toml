@@ -1,0 +1,20 @@
+# Netlify configuration for SGC-PAVI
+# Frontend is static from the repo root
+# Build Tailwind CSS and publish the root directory
+
+[build]
+  command = "npm run build:css"
+  publish = "."
+
+# Proxy API calls to Render backend
+[[redirects]]
+  from = "/api/*"
+  to = "https://sgc-grupo-pavi.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+# Optional: enable SPA-style history fallback if needed
+# [[redirects]]
+#   from = "/*"
+#   to = "/index.html"
+#   status = 200
