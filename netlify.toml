@@ -13,13 +13,6 @@
   status = 200
   force = true
 
-# Proxy uploaded files to the backend static /uploads path
-[[redirects]]
-  from = "/uploads/*"
-  to = "https://sgc-grupo-pavi.onrender.com/uploads/:splat"
-  status = 200
-  force = true
-
 # Optional: enable SPA-style history fallback if needed
 # [[redirects]]
 #   from = "/*"

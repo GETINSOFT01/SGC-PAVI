@@ -301,55 +301,6 @@
 
 
 
-            <!-- Documentos -->
-            <div v-if="currentModule === 'documentos'">
-                <div class="bg-white rounded-lg shadow-md overflow-hidden">
-                    <table class="min-w-full divide-y divide-slate-200">
-                        <thead class="bg-slate-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Código</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Nombre</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Versión</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Fecha Revisión</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Estado</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Archivo</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-slate-200">
-                            <tr v-for="item in documentos" :key="item.id" class="hover:bg-slate-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{{ item.codigo }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ item.nombre }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ item.version }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ formatDate(item.fecha_revision) }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                    <span :class="getStatusClass(item.estado)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">{{ item.estado }}</span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                    <div class="flex items-center space-x-2">
-                                        <span class="text-slate-600" :title="item.file_url">{{ getFileName(item.file_url) }}</span>
-                                        <button @click="openPreview({ ...item, file_url: resolveFileUrl(item.file_url) })" :disabled="!item.file_url" class="text-cyan-600 hover:text-cyan-900 disabled:text-slate-400" title="Ver">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                                    <button @click="openModal('edit', item)" class="text-cyan-600 hover:text-cyan-900" title="Editar">
-                                        <i class="fas fa-pen"></i>
-                                    </button>
-                                    <button @click="openHistoryModal(item)" class="text-slate-600 hover:text-slate-900" title="Historial">
-                                        <i class="fas fa-clock-rotate-left"></i>
-                                    </button>
-                                    <button @click="deleteItem(item)" class="text-red-600 hover:text-red-900" title="Eliminar">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
             <!-- Generic Table View for other modules -->
             <!-- Catálogos -->
             <div v-if="currentModule === 'avisos'">

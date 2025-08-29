@@ -18,10 +18,7 @@ try {
                 isPreviewModalOpen: false,
                 previewSrc: '',
                 logoUrl: 'https://placehold.co/100x100/1E293B/38BDF8?text=SGC',
-                // apiBase is configured dynamically in mounted()
-                // In dev: http://localhost:3003 (backend)
-                // In prod: relative '/api' (proxied by Netlify)
-                apiBase: '',
+                apiBase: 'http://localhost:3003',
                 currentSystem: 'iso9001',
                 systems: [
                     { id: 'iso9001', name: 'ISO 9001', colorClass: 'bg-cyan-600' },
@@ -623,6 +620,17 @@ try {
                     }
                 });
             },
+            handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                this.currentItem.file_url = `uploads/${file.name}`;
+            },
+            handleFotoUpload(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    this.currentItem.foto_url = URL.createObjectURL(file);
+                }
+            },
             getFileName(url) {
                 if (!url) return 'No hay archivo';
                 return url.split('/').pop();
@@ -634,125 +642,257 @@ try {
             closeHistoryModal() {
                 this.isHistoryModalOpen = false;
             },
-            async handleFileUpload(event) {
-                try {
-                    const file = event?.target?.files?.[0];
-                    if (!file) return;
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    const base = (this.apiBase || '').replace(/\/$/, '');
-                    const resp = await fetch(`${base}/api/upload`, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    if (!resp.ok) {
-                        const err = await resp.json().catch(() => ({}));
-                        throw new Error(err.error || `Error de carga: HTTP ${resp.status}`);
-                    }
-                    const data = await resp.json().catch(() => ({}));
-                    const uploadedPath = data?.path || data?.filePath || '';
-                    if (!uploadedPath) throw new Error('Respuesta inválida del servidor.');
-                    // Normalize to relative path without leading slash for storage
-                    const relative = uploadedPath.startsWith('/') ? uploadedPath.slice(1) : uploadedPath;
-                    this.currentItem.file_url = relative;
-                } catch (e) {
-                    console.error('handleFileUpload error:', e);
-                    alert(`No se pudo subir el archivo: ${e.message}`);
-                } finally {
-                    // Reset input value so selecting the same file again re-triggers change
-                    if (event && event.target) event.target.value = '';
-                }
+            resolveFileUrl(url) {
+                if (!url) return '';
+                // If already absolute (http/https), return as is
+                if (/^https?:\/\//i.test(url)) return url;
+                // Ensure it points to backend server
+                const base = this.apiBase.replace(/\/$/, '');
+                const path = url.startsWith('/') ? url : `/${url}`;
+                return `${base}${path}`;
             },
-            async handleFotoUpload(event) {
-                try {
-                    const file = event?.target?.files?.[0];
-                    if (!file) return;
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    const base = (this.apiBase || '').replace(/\/$/, '');
-                    const resp = await fetch(`${base}/api/upload`, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    if (!resp.ok) {
-                        const err = await resp.json().catch(() => ({}));
-                        throw new Error(err.error || `Error de carga: HTTP ${resp.status}`);
-                    }
-                    const data = await resp.json().catch(() => ({}));
-                    const uploadedPath = data?.path || data?.filePath || '';
-                    if (!uploadedPath) throw new Error('Respuesta inválida del servidor.');
-                    const relative = uploadedPath.startsWith('/') ? uploadedPath.slice(1) : uploadedPath;
-                    this.currentItem.foto_url = relative;
-                } catch (e) {
-                    console.error('handleFotoUpload error:', e);
-                    alert(`No se pudo subir la imagen: ${e.message}`);
-                } finally {
-                    if (event && event.target) event.target.value = '';
+            openPreview(documento) {
+                const src = this.resolveFileUrl(documento?.file_url);
+                if (!src) {
+                    alert('Este documento no tiene un archivo asociado.');
+                    return;
                 }
-            },
-            openPreview(item) {
-                try {
-                    const url = this.resolveFileUrl(item?.file_url || '');
-                    if (!url) return;
-                    this.previewSrc = url;
-                    this.isPreviewModalOpen = true;
-                } catch (e) {
-                    console.error('openPreview error:', e);
-                }
+                this.previewSrc = src;
+                this.isPreviewModalOpen = true;
             },
             closePreview() {
                 this.isPreviewModalOpen = false;
                 this.previewSrc = '';
             },
-            resolveFileUrl(url) {
-                if (!url) return '';
-                // If already absolute (http/https), return as is
-                if (/^https?:\/\//i.test(url)) return url;
-                // If it's an uploads path, return it as site-relative so Netlify can proxy /uploads/*
-                if (url.startsWith('/uploads') || url.startsWith('uploads/')) {
-                    return url.startsWith('/') ? url : `/${url}`;
+            getLabel(key) {
+                const labels = {
+                    nombre: 'Nombre',
+                    descripcion: 'Descripción',
+                    responsable_id: 'Responsable',
+                    progreso: 'Progreso (%)',
+                    objetivo_asociado_id: 'Objetivo Asociado',
+                    meta: 'Meta',
+                    valor_actual: 'Valor Actual',
+                    tendencia_id: 'Tendencia',
+                    codigo: 'Código',
+                    version: 'Versión',
+                    fecha_revision: 'Fecha de Revisión',
+                    estado: 'Estado',
+                    file_url: 'Archivo',
+                    entradas: 'Entradas',
+                    salidas: 'Salidas',
+                    tipo: 'Tipo',
+                    area_auditada_id: 'Área Auditada',
+                    fecha_inicio: 'Fecha de Inicio',
+                    fecha_fin: 'Fecha de Fin',
+                    auditor_lider_id: 'Auditor Líder',
+                    origen_id: 'Origen',
+                    fecha_deteccion: 'Fecha de Detección',
+                    responsable_id: 'Responsable de la Acción',
+                    modulo: 'Módulo',
+                    dias_previos: 'Días de Anticipación',
+                    activo: 'Activo',
+                    puesto_id: 'Puesto',
+                    area_id: 'Área',
+                    foto_url: 'URL de Foto',
+                    descripcion_cambios: 'Descripción de Cambios'
+                };
+                return labels[key] || key.replace(/_/g, ' ').replace(/ id/g, '').replace(/^./, str => str.toUpperCase());
+            },
+            isForeignKey(key) {
+                const foreignKeyFields = [
+                    'responsable_id',
+                    'area_auditada_id',
+                    'auditor_lider_id',
+                    'origen_id',
+                    'puesto_id',
+                    'area_id',
+                    'objetivo_asociado_id',
+                    'tendencia_id'
+                ];
+                return foreignKeyFields.includes(key);
+            },
+            getOptionsFor(key) {
+                const map = {
+                    responsable_id: this.personal,
+                    area_auditada_id: this.catalogos.areas,
+                    auditor_lider_id: this.personal,
+                    origen_id: this.catalogos.origen_noconformidad,
+                    puesto_id: this.catalogos.puestos,
+                    area_id: this.catalogos.areas,
+                    objetivo_asociado_id: this.objetivos,
+                    tendencia_id: this.catalogos.tendencia_indicador
+                };
+                return map[key] || [];
+            },
+            calculateRemainingWorkdays(endDateString) {
+                if (!endDateString) return null;
+                const today = new Date();
+                const endDate = new Date(endDateString + 'T00:00:00-06:00');
+                today.setHours(0, 0, 0, 0);
+                if (endDate < today) {
+                    return 0;
                 }
-                // Otherwise, prefix with apiBase (for API-like relative paths if any)
-                const base = (this.apiBase || '').replace(/\/$/, '');
-                const path = url.startsWith('/') ? url : `/${url}`;
-                return `${base}${path}`;
+                let remainingDays = 0;
+                let currentDate = new Date(today);
+                while (currentDate <= endDate) {
+                    const dayOfWeek = currentDate.getDay();
+                    if (dayOfWeek !== 0 && dayOfWeek !== 6) { // 0 = Sunday, 6 = Saturday
+                        remainingDays++;
+                    }
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+                return remainingDays;
+            },
+            getSystemName(systemId) {
+                const system = this.systems.find(s => s.id === systemId);
+                return system ? system.name : 'Sistema Desconocido';
+            },
+            getResponsableName(id) {
+                const responsable = this.personal.find(p => p.id === id);
+                return responsable ? responsable.nombre : 'No asignado';
+            },
+            getAreaName(id) {
+                const area = this.catalogos.areas.find(a => a.id === id);
+                return area ? area.nombre : 'No asignada';
+            },
+            getPuestoName(id) {
+                const puesto = this.catalogos.puestos.find(p => p.id === id);
+                return puesto ? puesto.nombre : 'No asignado';
+            },
+            getAuditorLiderName(id) {
+                const auditor = this.personal.find(p => p.id === id);
+                return auditor ? auditor.nombre : 'No asignado';
+            },
+            getOrigenName(id) {
+                const origen = this.catalogos.origen_noconformidad.find(o => o.id === id);
+                return origen ? origen.nombre : 'No asignado';
+            },
+            getTrendName(trendId) {
+                const trend = this.catalogos.tendencia_indicador.find(t => t.id === trendId);
+                return trend ? trend.nombre : 'N/A';
+            },
+            getEstadoAuditoriaName(estadoId) {
+                const estado = this.catalogos.estado_auditoria.find(e => e.id === estadoId);
+                return estado ? estado.nombre : 'N/A';
+            },
+            getAuditoriaStatusClass(statusId) {
+                const estadoName = this.getEstadoAuditoriaName(statusId).toLowerCase();
+                switch (estadoName) {
+                    case 'completada': return 'bg-green-100 text-green-800';
+                    case 'en proceso': return 'bg-blue-100 text-blue-800';
+                    case 'planificada': return 'bg-yellow-100 text-yellow-800';
+                    case 'cancelada': return 'bg-red-100 text-red-800';
+                    default: return 'bg-slate-100 text-slate-800';
+                }
+            },
+            renderAuditoriasStatusChart() {
+                if (this.auditoriasStatusChartInstance) {
+                    this.auditoriasStatusChartInstance.destroy();
+                }
+                const ctx = document.getElementById('auditoriasStatusChart');
+                if (!ctx) return;
+                const statusCounts = this.auditorias.reduce((acc, audit) => {
+                    const statusName = this.getEstadoAuditoriaName(audit.estado);
+                    acc[statusName] = (acc[statusName] || 0) + 1;
+                    return acc;
+                }, {});
+                this.auditoriasStatusChartInstance = new Chart(ctx.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(statusCounts),
+                        datasets: [{
+                            data: Object.values(statusCounts),
+                            backgroundColor: ['#3B82F6', '#9CA3AF', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'],
+                            borderColor: '#1E293B',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            },
+            logout() {
+                sessionStorage.removeItem('loggedInUser');
+                this.isAuthenticated = false;
+                this.loggedInUser = null;
+                window.location.href = 'login.html';
+            },
+            toggleProfileMenu() {
+                this.isProfileMenuOpen = !this.isProfileMenuOpen;
+            },
+            async selectModule(moduleId) {
+                if (moduleId === 'reportes') {
+                    window.location.href = 'reportes.html';
+                    return;
+                }
+                this.currentModule = moduleId;
+                await this.loadModuleData(moduleId);
+            },
+            renderNoConformidadesOrigenChart() {
+                if (this.noConformidadesOrigenChartInstance) {
+                    this.noConformidadesOrigenChartInstance.destroy();
+                }
+                const ctx = document.getElementById('noConformidadesOrigenChart');
+                if (!ctx) return;
+                const origenCounts = this.noconformidades.reduce((acc, nc) => {
+                    const origenName = this.getOrigenName(nc.origen_id);
+                    acc[origenName] = (acc[origenName] || 0) + 1;
+                    return acc;
+                }, {});
+                this.noConformidadesOrigenChartInstance = new Chart(ctx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(origenCounts),
+                        datasets: [{
+                            label: 'Número de No Conformidades',
+                            data: Object.values(origenCounts),
+                            backgroundColor: '#06B6D4',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
             }
         },
         mounted() {
-            console.log('Vue app mounted.');
-            // Authentication check: require loggedInUser in sessionStorage
-            try {
-                const rawUser = sessionStorage.getItem('loggedInUser');
-                if (rawUser) {
-                    this.loggedInUser = JSON.parse(rawUser);
-                    this.isAuthenticated = true;
-                } else {
+                console.log('Vue app mounted.');
+                // Authentication check: require loggedInUser in sessionStorage
+                try {
+                    const rawUser = sessionStorage.getItem('loggedInUser');
+                    if (rawUser) {
+                        this.loggedInUser = JSON.parse(rawUser);
+                        this.isAuthenticated = true;
+                    } else {
+                        this.isAuthenticated = false;
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Error leyendo sesión de usuario:', e);
                     this.isAuthenticated = false;
                     window.location.href = 'login.html';
                     return;
                 }
-            } catch (e) {
-                console.error('Error leyendo sesión de usuario:', e);
-                this.isAuthenticated = false;
-                window.location.href = 'login.html';
-                return;
-            }
-            // Configure API base dynamically similar to login.js
-            try {
-                const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                const stored = localStorage.getItem('API_BASE');
-                // window.API_BASE can be injected before app.js if needed
-                const runtime = typeof window !== 'undefined' && window.API_BASE ? window.API_BASE : null;
-                this.apiBase = runtime || stored || (isLocalhost ? 'http://localhost:3003' : '/api');
-            } catch (e) {
-                console.warn('No se pudo configurar apiBase dinámicamente, usando defaults. Detalle:', e);
-                this.apiBase = 'http://localhost:3003';
-            }
-            // Load persisted data for editable modules
-            ['objetivos','indicadores','documentos','procesos','auditorias','noconformidades','avisos','personal']
-                .forEach(m => this.loadFromStorage(m));
-            // Load persisted catalogs
-            Object.keys(this.catalogos || {}).forEach(c => this.loadCatalogFromStorage(c));
+                // Load persisted data for editable modules
+                ['objetivos','indicadores','documentos','procesos','auditorias','noconformidades','avisos','personal']
+                    .forEach(m => this.loadFromStorage(m));
+                // Load persisted catalogs
+                Object.keys(this.catalogos || {}).forEach(c => this.loadCatalogFromStorage(c));
             this.$nextTick(() => {
                 if (this.currentModule === 'dashboard') {
                     this.renderAuditoriasStatusChart();
