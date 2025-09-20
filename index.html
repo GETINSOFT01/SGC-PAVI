@@ -376,6 +376,109 @@
                 </div>
             </div>
 
+            <!-- Reports Section -->
+            <div v-if="currentModule === 'reportes'">
+                <div class="flex h-full">
+                    <!-- Reports Sidebar -->
+                    <div class="w-64 bg-white p-4 shadow-md flex-shrink-0 rounded-lg mr-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">Categorías</h2>
+                        <nav>
+                            <ul>
+                                <li v-for="category in reportCategories" :key="category.id" class="mb-2">
+                                    <a href="#"
+                                       @click.prevent="selectReportCategory(category.id)"
+                                       :class="['flex items-center p-2 text-gray-700 rounded-lg hover:bg-gray-100', { 'bg-cyan-100 text-cyan-800 font-semibold': currentReportCategory === category.id }]">
+                                        <i :class="[category.icon, 'w-5 h-5 mr-3']"></i>
+                                        <span>{{ category.name }}</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+
+                    <!-- Reports Content -->
+                    <div class="flex-1 overflow-y-auto">
+                        <div v-if="currentReportCategory === 'general'">
+                            <h1 class="text-3xl font-bold text-gray-800 mb-6">Reportes Generales</h1>
+                            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                <div class="bg-white p-4 rounded-lg shadow">
+                                    <h2 class="text-lg font-semibold text-gray-700 mb-2">Estado de Auditorías</h2>
+                                    <canvas id="reportAuditoriasStatusChart"></canvas>
+                                </div>
+                                <div class="bg-white p-4 rounded-lg shadow">
+                                    <h2 class="text-lg font-semibold text-gray-700 mb-2">Origen de No Conformidades</h2>
+                                    <canvas id="reportNoConformidadesOrigenChart"></canvas>
+                                </div>
+                                <div class="bg-white p-4 rounded-lg shadow">
+                                    <h2 class="text-lg font-semibold text-gray-700 mb-2">Estado de Documentos</h2>
+                                    <canvas id="reportDocumentosStatusChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="currentReportCategory === 'documentos'">
+                            <h1 class="text-3xl font-bold text-gray-800 mb-6">Reportes de Documentos</h1>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="bg-white p-4 rounded-lg shadow">
+                                    <h2 class="text-lg font-semibold text-gray-700 mb-2">Documentos por Estado</h2>
+                                    <canvas id="reportDocStatusChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="currentReportCategory === 'auditorias'">
+                            <h1 class="text-3xl font-bold text-gray-800 mb-6">Reportes de Auditorías</h1>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="bg-white p-4 rounded-lg shadow">
+                                    <h2 class="text-lg font-semibold text-gray-700 mb-2">Auditorías por Tipo</h2>
+                                    <canvas id="reportAuditoriasTipoChart"></canvas>
+                                </div>
+                                <div class="bg-white p-4 rounded-lg shadow">
+                                    <h2 class="text-lg font-semibold text-gray-700 mb-2">Auditorías por Área</h2>
+                                    <canvas id="reportAuditoriasAreaChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="currentReportCategory === 'noconformidades'">
+                            <h1 class="text-3xl font-bold text-gray-800 mb-6">Reportes de No Conformidades</h1>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="bg-white p-4 rounded-lg shadow">
+                                    <h2 class="text-lg font-semibold text-gray-700 mb-2">No Conformidades por Estado</h2>
+                                    <canvas id="reportNoConformidadEstadoChart"></canvas>
+                                </div>
+                                <div class="bg-white p-4 rounded-lg shadow">
+                                    <h2 class="text-lg font-semibold text-gray-700 mb-2">No Conformidades por Origen</h2>
+                                    <canvas id="reportNoConformidadOrigenChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="currentReportCategory === 'objetivos'">
+                            <h1 class="text-3xl font-bold text-gray-800 mb-6">Reportes de Objetivos</h1>
+                            <div class="bg-white p-6 rounded-lg shadow">
+                                <h2 class="text-lg font-semibold text-gray-700 mb-2">Progreso de Objetivos de Calidad</h2>
+                                <canvas id="reportObjetivosProgresoChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div v-if="currentReportCategory === 'personal'">
+                            <h1 class="text-3xl font-bold text-gray-800 mb-6">Reportes de Personal</h1>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="bg-white p-4 rounded-lg shadow">
+                                    <h2 class="text-lg font-semibold text-gray-700 mb-2">Personal por Área</h2>
+                                    <canvas id="reportPersonalAreaChart"></canvas>
+                                </div>
+                                <div class="bg-white p-4 rounded-lg shadow">
+                                    <h2 class="text-lg font-semibold text-gray-700 mb-2">Personal por Puesto</h2>
+                                    <canvas id="reportPersonalPuestoChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Personal Search Bar -->
             <div v-if="currentModule === 'personal'" class="mb-4">
                 <input type="text" v-model="personalSearchQuery" placeholder="Buscar por nombre, puesto, área..." class="block w-full sm:w-1/3 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">

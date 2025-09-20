@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
         methods: {
             async fetchData(endpoint) {
                 try {
-                    const response = await fetch(`http://localhost:3002/api/${endpoint}`);
+                    const response = await fetch(`http://localhost:3003/api/${endpoint}`);
                     if (!response.ok) {
                         throw new Error(`Error fetching ${endpoint}: ${response.statusText}`);
                     }

@@ -85,6 +85,25 @@ try {
                     { id: 1, nombre: 'Próxima Auditoría Interna', modulo: 'auditorias', dias_previos: 15, activo: true, fecha_evento: '2024-08-01' },
                     { id: 2, nombre: 'Revisión de Contrato Anual', modulo: 'documentos', dias_previos: 30, activo: false, fecha_evento: '2024-12-01' }
                 ],
+                // Reports data
+                reportsData: {
+                    documentos: [],
+                    auditorias: [],
+                    noconformidades: [],
+                    objetivos: [],
+                    personal: [],
+                    catalogos: {}
+                },
+                currentReportCategory: 'general',
+                reportCategories: [
+                    { id: 'general', name: 'General', icon: 'fas fa-chart-pie' },
+                    { id: 'documentos', name: 'Documentos', icon: 'fas fa-file-alt' },
+                    { id: 'auditorias', name: 'Auditorías', icon: 'fas fa-clipboard-check' },
+                    { id: 'noconformidades', name: 'No Conformidades', icon: 'fas fa-exclamation-triangle' },
+                    { id: 'objetivos', name: 'Objetivos', icon: 'fas fa-bullseye' },
+                    { id: 'personal', name: 'Personal', icon: 'fas fa-users' }
+                ],
+                reportChartInstances: {},
                 catalogos: {
                     origen_noconformidad: [
                         { id: 1, nombre: 'Auditoría Interna' },
@@ -424,6 +443,204 @@ try {
                     console.error(`Error cargando datos para módulo "${moduleId}":`, err);
                 }
             },
+
+            // Reports functionality
+            async fetchReportData(endpoint) {
+                try {
+                    const response = await fetch(`${this.apiBase}/api/${endpoint}`);
+                    if (!response.ok) {
+                        throw new Error(`Error fetching ${endpoint}: ${response.statusText}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error(`Failed to fetch ${endpoint}:`, error);
+                    return [];
+                }
+            },
+
+            async loadReportsData() {
+                console.log('Loading all data for reports...');
+                const [documentos, auditorias, noconformidades, objetivos, personal, catalogos] = await Promise.all([
+                    this.fetchReportData('documentos'),
+                    this.fetchReportData('auditorias'),
+                    this.fetchReportData('noconformidades'),
+                    this.fetchReportData('objetivos'),
+                    this.fetchReportData('personal'),
+                    this.fetchReportData('catalogos')
+                ]);
+                
+                this.reportsData = {
+                    documentos: Array.isArray(documentos) ? documentos : [],
+                    auditorias: Array.isArray(auditorias) ? auditorias : [],
+                    noconformidades: Array.isArray(noconformidades) ? noconformidades : [],
+                    objetivos: Array.isArray(objetivos) ? objetivos : [],
+                    personal: Array.isArray(personal) ? personal : [],
+                    catalogos: catalogos || {}
+                };
+                console.log('Reports data loaded:', this.reportsData);
+            },
+
+            selectReportCategory(categoryId) {
+                this.currentReportCategory = categoryId;
+                this.$nextTick(() => {
+                    this.renderCurrentCategoryCharts();
+                });
+            },
+
+            renderCurrentCategoryCharts() {
+                // Destroy previous charts to prevent conflicts
+                Object.values(this.reportChartInstances).forEach(chart => chart.destroy());
+                this.reportChartInstances = {};
+
+                switch (this.currentReportCategory) {
+                    case 'general':
+                        this.renderReportAuditoriasStatusChart('reportAuditoriasStatusChart');
+                        this.renderReportNoConformidadesOrigenChart('reportNoConformidadesOrigenChart');
+                        this.renderReportDocumentosStatusChart('reportDocumentosStatusChart');
+                        break;
+                    case 'documentos':
+                        this.renderReportDocumentosStatusChart('reportDocStatusChart');
+                        break;
+                    case 'auditorias':
+                        this.renderReportAuditoriasTipoChart('reportAuditoriasTipoChart');
+                        this.renderReportAuditoriasAreaChart('reportAuditoriasAreaChart');
+                        break;
+                    case 'noconformidades':
+                        this.renderReportNoConformidadEstadoChart('reportNoConformidadEstadoChart');
+                        this.renderReportNoConformidadOrigenChart('reportNoConformidadOrigenChart');
+                        break;
+                    case 'objetivos':
+                        this.renderReportObjetivosProgresoChart('reportObjetivosProgresoChart');
+                        break;
+                    case 'personal':
+                        this.renderReportPersonalAreaChart('reportPersonalAreaChart');
+                        this.renderReportPersonalPuestoChart('reportPersonalPuestoChart');
+                        break;
+                }
+            },
+
+            createReportChart(canvasId, type, data, options) {
+                const ctx = document.getElementById(canvasId);
+                if (!ctx) return null;
+                return new Chart(ctx.getContext('2d'), { type, data, options });
+            },
+
+            renderReportDocumentosStatusChart(canvasId) {
+                const statusCounts = this.reportsData.documentos.reduce((acc, doc) => {
+                    acc[doc.estado] = (acc[doc.estado] || 0) + 1;
+                    return acc;
+                }, {});
+                this.reportChartInstances.docStatus = this.createReportChart(canvasId, 'pie', {
+                    labels: Object.keys(statusCounts),
+                    datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#10B981', '#F59E0B', '#EF4444'] }]
+                }, { responsive: true, plugins: { legend: { position: 'top' } } });
+            },
+
+            renderReportAuditoriasStatusChart(canvasId) {
+                const statusCounts = this.reportsData.auditorias.reduce((acc, audit) => {
+                    const estado = this.reportsData.catalogos.estados_auditoria?.find(e => e.id === audit.estado)?.nombre || audit.estado;
+                    acc[estado] = (acc[estado] || 0) + 1;
+                    return acc;
+                }, {});
+                this.reportChartInstances.auditStatus = this.createReportChart(canvasId, 'doughnut', {
+                    labels: Object.keys(statusCounts),
+                    datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#6B7280', '#EF4444'] }]
+                }, { responsive: true, plugins: { legend: { position: 'top' } } });
+            },
+
+            renderReportAuditoriasTipoChart(canvasId) {
+                const tipoCounts = this.reportsData.auditorias.reduce((acc, audit) => {
+                    acc[audit.tipo] = (acc[audit.tipo] || 0) + 1;
+                    return acc;
+                }, {});
+                this.reportChartInstances.auditTipo = this.createReportChart(canvasId, 'pie', {
+                    labels: Object.keys(tipoCounts),
+                    datasets: [{ data: Object.values(tipoCounts), backgroundColor: ['#8B5CF6', '#10B981'] }]
+                }, { responsive: true, plugins: { legend: { position: 'top' } } });
+            },
+
+            renderReportAuditoriasAreaChart(canvasId) {
+                const areaCounts = this.reportsData.auditorias.reduce((acc, audit) => {
+                    const areaName = this.reportsData.catalogos.areas?.find(a => a.id === audit.area_auditada_id)?.nombre || 'N/A';
+                    acc[areaName] = (acc[areaName] || 0) + 1;
+                    return acc;
+                }, {});
+                this.reportChartInstances.auditArea = this.createReportChart(canvasId, 'bar', {
+                    labels: Object.keys(areaCounts),
+                    datasets: [{ label: 'Auditorías por Área', data: Object.values(areaCounts), backgroundColor: '#3B82F6' }]
+                }, { responsive: true, scales: { y: { beginAtZero: true } } });
+            },
+
+            renderReportNoConformidadesOrigenChart(canvasId) {
+                const origenCounts = this.reportsData.noconformidades.reduce((acc, nc) => {
+                    const origenName = this.reportsData.catalogos.origenes_noconformidad?.find(o => o.id === nc.origen_id)?.nombre || 'Desconocido';
+                    acc[origenName] = (acc[origenName] || 0) + 1;
+                    return acc;
+                }, {});
+                this.reportChartInstances.ncOrigen = this.createReportChart(canvasId, 'bar', {
+                    labels: Object.keys(origenCounts),
+                    datasets: [{ label: 'No Conformidades por Origen', data: Object.values(origenCounts), backgroundColor: '#EF4444' }]
+                }, { responsive: true, indexAxis: 'y', scales: { x: { beginAtZero: true } } });
+            },
+
+            renderReportNoConformidadEstadoChart(canvasId) {
+                const estadoCounts = this.reportsData.noconformidades.reduce((acc, nc) => {
+                    const estadoName = this.reportsData.catalogos.estados_noconformidad?.find(e => e.id === nc.estado)?.nombre || nc.estado;
+                    acc[estadoName] = (acc[estadoName] || 0) + 1;
+                    return acc;
+                }, {});
+                this.reportChartInstances.ncEstado = this.createReportChart(canvasId, 'pie', {
+                    labels: Object.keys(estadoCounts),
+                    datasets: [{ data: Object.values(estadoCounts), backgroundColor: ['#F59E0B', '#10B981', '#6B7280'] }]
+                }, { responsive: true, plugins: { legend: { position: 'top' } } });
+            },
+
+            renderReportNoConformidadOrigenChart(canvasId) {
+                const origenCounts = this.reportsData.noconformidades.reduce((acc, nc) => {
+                    const origenName = this.reportsData.catalogos.origenes_noconformidad?.find(o => o.id === nc.origen_id)?.nombre || 'Desconocido';
+                    acc[origenName] = (acc[origenName] || 0) + 1;
+                    return acc;
+                }, {});
+                this.reportChartInstances.ncOrigenChart = this.createReportChart(canvasId, 'bar', {
+                    labels: Object.keys(origenCounts),
+                    datasets: [{ label: 'No Conformidades por Origen', data: Object.values(origenCounts), backgroundColor: '#EF4444' }]
+                }, { responsive: true, indexAxis: 'y', scales: { x: { beginAtZero: true } } });
+            },
+
+            renderReportObjetivosProgresoChart(canvasId) {
+                this.reportChartInstances.objProgreso = this.createReportChart(canvasId, 'bar', {
+                    labels: this.reportsData.objetivos.map(o => o.nombre),
+                    datasets: [{
+                        label: 'Progreso (%)',
+                        data: this.reportsData.objetivos.map(o => o.progreso || 0),
+                        backgroundColor: this.reportsData.objetivos.map(o => (o.progreso || 0) < 50 ? '#EF4444' : (o.progreso || 0) < 90 ? '#F59E0B' : '#10B981'),
+                    }]
+                }, { responsive: true, indexAxis: 'y', scales: { x: { beginAtZero: true, max: 100 } } });
+            },
+
+            renderReportPersonalAreaChart(canvasId) {
+                const areaCounts = this.reportsData.personal.reduce((acc, p) => {
+                    const areaName = this.reportsData.catalogos.areas?.find(a => a.id === p.area_id)?.nombre || 'N/A';
+                    acc[areaName] = (acc[areaName] || 0) + 1;
+                    return acc;
+                }, {});
+                this.reportChartInstances.personalArea = this.createReportChart(canvasId, 'doughnut', {
+                    labels: Object.keys(areaCounts),
+                    datasets: [{ data: Object.values(areaCounts), backgroundColor: ['#1D4ED8', '#047857', '#9333EA', '#B91C1C'] }]
+                }, { responsive: true, plugins: { legend: { position: 'top' } } });
+            },
+
+            renderReportPersonalPuestoChart(canvasId) {
+                const puestoCounts = this.reportsData.personal.reduce((acc, p) => {
+                    const puestoName = this.reportsData.catalogos.puestos?.find(pu => pu.id === p.puesto_id)?.nombre || 'N/A';
+                    acc[puestoName] = (acc[puestoName] || 0) + 1;
+                    return acc;
+                }, {});
+                this.reportChartInstances.personalPuesto = this.createReportChart(canvasId, 'bar', {
+                    labels: Object.keys(puestoCounts),
+                    datasets: [{ label: 'Nº de Empleados por Puesto', data: Object.values(puestoCounts), backgroundColor: '#06B6D4' }]
+                }, { responsive: true, scales: { y: { beginAtZero: true } } });
+            },
             formatDate(dateString) {
                 if (!dateString) return 'N/A';
                 const date = new Date(dateString.replace(/-/g, '/'));
@@ -432,6 +649,20 @@ try {
                     month: '2-digit',
                     day: '2-digit'
                 });
+            },
+            async selectModule(moduleId) {
+                this.currentModule = moduleId;
+                
+                // Load reports data when reports module is selected
+                if (moduleId === 'reportes') {
+                    await this.loadReportsData();
+                    this.$nextTick(() => {
+                        this.renderCurrentCategoryCharts();
+                    });
+                } else {
+                    // Load other module data if needed
+                    await this.loadModuleData(moduleId);
+                }
             },
             changeSystem(systemId) {
                 this.currentSystem = systemId;
@@ -822,24 +1053,6 @@ try {
                 this.isAuthenticated = false;
                 this.loggedInUser = null;
                 window.location.href = 'login.html';
-            },
-            toggleProfileMenu() {
-                this.isProfileMenuOpen = !this.isProfileMenuOpen;
-            },
-            async selectModule(moduleId) {
-                if (moduleId === 'reportes') {
-                    window.location.href = 'reportes.html';
-                    return;
-                }
-                this.currentModule = moduleId;
-                await this.loadModuleData(moduleId);
-            },
-            renderNoConformidadesOrigenChart() {
-                if (this.noConformidadesOrigenChartInstance) {
-                    this.noConformidadesOrigenChartInstance.destroy();
-                }
-                const ctx = document.getElementById('noConformidadesOrigenChart');
-                if (!ctx) return;
                 const origenCounts = this.noconformidades.reduce((acc, nc) => {
                     const origenName = this.getOrigenName(nc.origen_id);
                     acc[origenName] = (acc[origenName] || 0) + 1;

@@ -205,11 +205,37 @@ app.post('/api/usuarios', (req, res) => {
     });
 });
 
+// Special endpoint for catalogos (structured differently)
+app.get('/api/catalogos', (req, res) => {
+    const sql = `SELECT tipo, id, nombre, descripcion FROM catalogos WHERE activo = 1 ORDER BY tipo, nombre`;
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        // Group by tipo to match expected structure
+        const catalogos = {};
+        rows.forEach(row => {
+            if (!catalogos[row.tipo]) {
+                catalogos[row.tipo] = [];
+            }
+            catalogos[row.tipo].push({
+                id: row.id,
+                nombre: row.nombre,
+                descripcion: row.descripcion
+            });
+        });
+        
+        res.json(catalogos);
+    });
+});
+
 // Generic endpoint to get data from any table
 app.get('/api/:module', (req, res) => {
     const moduleName = req.params.module;
     // A simple allowlist to prevent arbitrary table access
-    const allowedModules = ['objetivos', 'indicadores', 'documentos', 'procesos', 'auditorias', 'noconformidades', 'avisos', 'personal', 'usuarios', 'catalogos'];
+    const allowedModules = ['objetivos', 'indicadores', 'documentos', 'procesos', 'auditorias', 'noconformidades', 'avisos', 'personal', 'usuarios'];
     
     if (!allowedModules.includes(moduleName)) {
         return res.status(404).json({ error: 'Module not found' });

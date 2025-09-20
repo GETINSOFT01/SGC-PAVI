@@ -1,6 +1,6 @@
 window.shared = {
     checkAuth: () => {
-        const user = JSON.parse(sessionStorage.getItem('user'));
+        const user = JSON.parse(sessionStorage.getItem('loggedInUser'));
         if (!user) {
             if (!window.location.pathname.endsWith('login.html')) {
                 window.location.href = 'login.html';
