@@ -424,6 +424,17 @@ app.delete('/api/objetivos/:id', (req, res) => {
 });
 
 // ============================================
+// Health check endpoint for Render
+// ============================================
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'OK', 
+        message: 'SGC PAVI Backend is running',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// ============================================
 // Iniciar el servidor
 // ============================================
 app.listen(port, () => {
