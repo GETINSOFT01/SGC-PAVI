@@ -70,13 +70,19 @@ app.post('/api/upload', upload.single('document'), (req, res) => {
     }
 });
 
-// Connect to SQLite database (use project root sgc.db)
-const dbPath = path.resolve(__dirname, '../sgc.db');
+// Connect to SQLite database
+// In production, use local database, in development use project root
+const dbPath = process.env.NODE_ENV === 'production' 
+    ? path.resolve(__dirname, 'sgc.db')
+    : path.resolve(__dirname, '../sgc.db');
+
+console.log('Database path:', dbPath);
+
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
-        console.error(err.message);
+        console.error('Database connection error:', err.message);
     }
-    console.log('Connected to the sgc.db database.');
+    console.log('Connected to the sgc.db database at:', dbPath);
 });
 
 // Ensure usuarios table exists and seed a default admin on first run
